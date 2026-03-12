@@ -111,8 +111,8 @@ EduGuard AI is designed using a **modular and scalable architecture** where the 
 | **Frontend** | React + TypeScript + Tailwind CSS | User interface & admin dashboard |
 | **Backend** | Node.js + Express.js | API & business logic |
 | **Database** | MongoDB + Mongoose | Data persistence |
-| **ML Service** | FastAPI / Flask | Model serving & predictions |
-| **Models** | Scikit-learn, NLP | ML predictions & analytics |
+| **ML Service** | FastAPI | Model serving & predictions |
+| **Models** | Scikit-learn, Random-Forest Classifier | ML predictions & analytics |
 
 This architecture allows **independent development, deployment, and scaling** of the machine learning services without impacting the core application.
 
