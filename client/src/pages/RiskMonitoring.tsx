@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader as TableHeaderUI, TableRow } from '../components/ui/table';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Filter, Search } from 'lucide-react';
+import { Filter, Search, PlusCircle, Loader2 } from 'lucide-react';
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ZAxis } from 'recharts';
+import { PageHeader } from '../components/ui/page-header';
+import { predictStudentDropout } from '../lib/api';
+import type { StudentData } from '../lib/api';
 
-const riskScatterData = [
+const initialScatterData = [
     { attendance: 65, gpa: 2.1, amount: 200, name: 'Student A' },
     { attendance: 75, gpa: 2.8, amount: 150, name: 'Student B' },
     { attendance: 85, gpa: 3.2, amount: 50, name: 'Student C' },
@@ -16,36 +20,200 @@ const riskScatterData = [
     { attendance: 90, gpa: 3.5, amount: 40, name: 'Student G' },
 ];
 
-const studentRiskList = [
+const initialStudentRiskList = [
     { id: '1', name: 'Alex Johnson', major: 'Computer Science', riskLevel: 'High', factors: ['Low Attendance', 'Failing Grades'] },
     { id: '2', name: 'Sam Smith', major: 'Electrical Eng', riskLevel: 'Medium', factors: ['Missed Assignments'] },
     { id: '3', name: 'Jordan Lee', major: 'Mathematics', riskLevel: 'Low', factors: ['None'] },
     { id: '4', name: 'Casey Woods', major: 'Physics', riskLevel: 'High', factors: ['Low Attendance', 'Behavioral'] },
 ];
 
-import { PageHeader } from '../components/ui/page-header';
-
-// ... (keep static data arrays)
-
 export const RiskMonitoring = () => {
+    const [riskScatterData, setRiskScatterData] = useState(initialScatterData);
+    const [studentRiskList, setStudentRiskList] = useState(initialStudentRiskList);
+    const [isAdding, setIsAdding] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const [formData, setFormData] = useState({
+        name: '',
+        major: '',
+        absences: 0,
+        currentGPA: 7.5
+    });
+
+    const handleAddStudent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        
+        try {
+            // Construct full student data object with defaults for uncollected form fields
+            const data: StudentData = {
+                School: 'GP',
+                Gender: 'F',
+                Age: 18,
+                Address: 'U',
+                Family_Size: 'GT3',
+                Parental_Status: 'T',
+                Mother_Education: 3,
+                Father_Education: 3,
+                Mother_Job: 'services',
+                Father_Job: 'services',
+                Reason_for_Choosing_School: 'course',
+                Guardian: 'mother',
+                Travel_Time: 1,
+                Study_Time: 2,
+                Number_of_Failures: formData.currentGPA < 5.0 ? 1 : 0,
+                School_Support: 'yes',
+                Family_Support: 'yes',
+                Extra_Paid_Class: 'no',
+                Extra_Curricular_Activities: 'yes',
+                Attended_Nursery: 'yes',
+                Wants_Higher_Education: 'yes',
+                Internet_Access: 'yes',
+                In_Relationship: 'no',
+                Family_Relationship: 4,
+                Free_Time: 3,
+                Going_Out: 3,
+                Weekend_Alcohol_Consumption: 1,
+                Weekday_Alcohol_Consumption: 1,
+                Health_Status: 5,
+                Number_of_Absences: formData.absences,
+                Grade_1: Math.round((formData.currentGPA / 10) * 20), // Map 0-10 GPA to 0-20 grade scale
+                Grade_2: Math.round((formData.currentGPA / 10) * 20)
+            };
+
+            const prediction = await predictStudentDropout(data);
+            
+            // Map prediction to UI risk levels
+            let riskLevel = 'Low';
+            const factors: string[] = [];
+            
+            if (prediction.risk_score > 0.7 || prediction.dropout) {
+                riskLevel = 'High';
+                if (formData.absences > 5) factors.push('High Absences');
+                if (formData.currentGPA < 6.0) factors.push('Low GPA');
+                if (factors.length === 0) factors.push('Model Flagged');
+            } else if (prediction.risk_score > 0.4) {
+                riskLevel = 'Medium';
+                if (formData.absences > 3) factors.push('Moderate Absences');
+                if (formData.currentGPA < 7.0) factors.push('Below Average GPA');
+            } else {
+                factors.push('None');
+            }
+
+            const newStudent = {
+                id: Math.random().toString(36).substr(2, 9),
+                name: formData.name || 'New Student',
+                major: formData.major || 'Undeclared',
+                riskLevel,
+                factors
+            };
+
+            const newScatter = {
+                attendance: Math.max(0, 100 - (formData.absences * 2)),
+                gpa: formData.currentGPA / 10 * 4,  // convert back to 0-4 for chart axis
+                amount: prediction.risk_score * 300,
+                name: newStudent.name
+            };
+
+            setStudentRiskList([newStudent, ...studentRiskList]);
+            setRiskScatterData([...riskScatterData, newScatter]);
+            
+            setIsAdding(false);
+            setFormData({ name: '', major: '', absences: 0, currentGPA: 3.0 });
+        } catch (error) {
+            console.error("Failed to predict dropout:", error);
+            alert("Error running prediction. Ensure the backend FastAPI server is running.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredStudents = studentRiskList.filter(s => 
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        s.major.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="flex flex-col gap-6 w-full animate-in fade-in duration-500">
+        <div className="flex flex-col gap-6 w-full animate-in fade-in duration-500 pb-10">
             <PageHeader
-                title="Risk Monitoring"
-                action={<Button variant="outline"><Filter className="mr-2 h-4 w-4" /> Filter By</Button>}
+                title="Live Risk Dashboard"
+                action={
+                    <div className="flex gap-2">
+                        <Button variant="outline"><Filter className="mr-2 h-4 w-4" /> Filter By</Button>
+                        <Button onClick={() => setIsAdding(!isAdding)}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> 
+                            New Entry
+                        </Button>
+                    </div>
+                }
             />
 
-            <Card className="mb-2 border-l-4 border-l-primary">
+            {isAdding && (
+                <Card className="border-l-4 border-l-primary bg-muted/30">
+                    <CardHeader>
+                        <CardTitle>Add Student Entry</CardTitle>
+                        <CardDescription>Simulate student dropout risk prediction live using the ML model.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleAddStudent} className="flex gap-4 items-end flex-wrap">
+                            <div className="grid gap-2 w-full max-w-xs">
+                                <label className="text-sm font-medium">Student Name</label>
+                                <Input 
+                                    required 
+                                    placeholder="Enter full name"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                                />
+                            </div>
+                            <div className="grid gap-2 w-full max-w-xs">
+                                <label className="text-sm font-medium">Major</label>
+                                <Input 
+                                    required 
+                                    placeholder="e.g. Computer Science" 
+                                    value={formData.major}
+                                    onChange={(e) => setFormData({...formData, major: e.target.value})} 
+                                />
+                            </div>
+                            <div className="grid gap-2 w-24">
+                                <label className="text-sm font-medium">Absences</label>
+                                <Input 
+                                    type="number" 
+                                    required 
+                                    min="0"
+                                    value={formData.absences}
+                                    onChange={(e) => setFormData({...formData, absences: parseInt(e.target.value) || 0})} 
+                                />
+                            </div>
+                            <div className="grid gap-2 w-24">
+                                <label className="text-sm font-medium">GPA (0-10)</label>
+                                <Input 
+                                    type="number" 
+                                    required 
+                                    min="0" max="10" step="0.1"
+                                    value={formData.currentGPA}
+                                    onChange={(e) => setFormData({...formData, currentGPA: parseFloat(e.target.value) || 0})} 
+                                />
+                            </div>
+                            <Button type="submit" disabled={loading} className="min-w-[140px]">
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Run Prediction"}
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+            )}
+
+            <Card className="mb-2">
                 <CardHeader>
-                    <CardTitle>Attendance vs GPA Correlation</CardTitle>
-                    <CardDescription>Predictive visualization of student risk factors</CardDescription>
+                    <CardTitle>Continuous Attendance vs GPA Correlation</CardTitle>
+                    <CardDescription>Predictive visualization of student risk factors. Larger circles indicate higher model-predicted risk scores.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis type="number" dataKey="attendance" name="Attendance %" unit="%" domain={[50, 100]} />
-                            <YAxis type="number" dataKey="gpa" name="GPA" unit="" domain={[1.0, 4.0]} />
+                            <XAxis type="number" dataKey="attendance" name="Attendance %" unit="%" domain={[40, 100]} />
+                            <YAxis type="number" dataKey="gpa" name="GPA" unit="" domain={[0.0, 4.0]} />
                             <ZAxis type="number" dataKey="amount" range={[60, 400]} name="Risk Weight" />
                             <Tooltip cursor={{ strokeDasharray: '3 3' }} />
                             <Scatter name="Students" data={riskScatterData} fill="hsl(var(--destructive))" opacity={0.7} />
@@ -57,12 +225,18 @@ export const RiskMonitoring = () => {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle>Intervention Roster</CardTitle>
-                        <CardDescription>Comprehensive list of students and detailed risk profiles</CardDescription>
+                        <CardTitle>Live Intervention Roster</CardTitle>
+                        <CardDescription>Comprehensive list of students and detailed risk profiles updated in real-time</CardDescription>
                     </div>
                     <div className="relative w-64">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search roster..." className="pl-8" />
+                        <Input 
+                            type="search" 
+                            placeholder="Search roster..." 
+                            className="pl-8" 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -71,19 +245,26 @@ export const RiskMonitoring = () => {
                             <TableRow>
                                 <TableHead>Student Name</TableHead>
                                 <TableHead>Major</TableHead>
-                                <TableHead>Risk Factors</TableHead>
+                                <TableHead>Risk Factors (Model Extracted)</TableHead>
                                 <TableHead className="text-right">Risk Level</TableHead>
                             </TableRow>
                         </TableHeaderUI>
                         <TableBody>
-                            {studentRiskList.map((student) => (
+                            {filteredStudents.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                                        No students found matching your search.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {filteredStudents.map((student) => (
                                 <TableRow key={student.id} className="cursor-pointer hover:bg-muted/50 transition-colors">
                                     <TableCell className="font-medium">{student.name}</TableCell>
                                     <TableCell>{student.major}</TableCell>
                                     <TableCell>
                                         <div className="flex gap-1 flex-wrap">
-                                            {student.factors.map(factor => (
-                                                <Badge key={factor} variant="secondary" className="text-xs">{factor}</Badge>
+                                            {student.factors.map((factor, idx) => (
+                                                <Badge key={idx} variant="secondary" className="text-xs">{factor}</Badge>
                                             ))}
                                         </div>
                                     </TableCell>
