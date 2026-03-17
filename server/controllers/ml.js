@@ -1,8 +1,8 @@
 // In a real scenario, this would import 'axios' to make HTTP requests to the FastAPI ml_service.
 // For now, we will create mock controllers that simulate that interaction or use a placeholder approach.
 // Assuming ml_service runs on http://localhost:8000
-// const axios = require('axios');
 
+const axios = require('axios');
 const StudentProfile = require('../models/StudentProfile');
 
 // @desc    Predict dropout risk for a student
@@ -17,7 +17,7 @@ exports.predictDropout = async (req, res, next) => {
     }
 
     // Mock ML prediction for demonstration.
-    // Real implementation: const response = await axios.post('http://localhost:8000/predict', studentData);
+    const response = await axios.post('http://localhost:8000/predict', studentData);
     const mockRiskLevels = ['Low', 'Medium', 'High'];
     const randomRisk = mockRiskLevels[Math.floor(Math.random() * mockRiskLevels.length)];
 
@@ -50,7 +50,7 @@ exports.analyzeSentiment = async (req, res, next) => {
     }
 
     // Mock Sentiment Analysis
-    // Real implementation: const response = await axios.post('http://localhost:8000/sentiment', { text });
+    const response = await axios.post('http://localhost:8000/sentiment', { text });
     const mockSentiments = ['Stable', 'Stressed', 'Anxious', 'Disengaged'];
     const randomSentiment = mockSentiments[Math.floor(Math.random() * mockSentiments.length)];
 
