@@ -1,37 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader as TableHeaderUI, TableRow } from '../components/ui/table';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Filter, Search, PlusCircle, Loader2 } from 'lucide-react';
+import { Filter, Search, PlusCircle, Loader2, AlertOctagon } from 'lucide-react';
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ZAxis } from 'recharts';
 import { PageHeader } from '../components/ui/page-header';
-import { predictStudentDropout } from '../lib/api';
+import { predictStudentDropout, getStudents } from '../lib/api';
 import type { StudentData } from '../lib/api';
 
-const initialScatterData = [
-    { attendance: 65, gpa: 2.1, amount: 200, name: 'Student A' },
-    { attendance: 75, gpa: 2.8, amount: 150, name: 'Student B' },
-    { attendance: 85, gpa: 3.2, amount: 50, name: 'Student C' },
-    { attendance: 95, gpa: 3.8, amount: 10, name: 'Student D' },
-    { attendance: 55, gpa: 1.8, amount: 300, name: 'Student E' },
-    { attendance: 82, gpa: 2.9, amount: 100, name: 'Student F' },
-    { attendance: 90, gpa: 3.5, amount: 40, name: 'Student G' },
-];
-
-const initialStudentRiskList = [
-    { id: '1', name: 'Alex Johnson', major: 'Computer Science', riskLevel: 'High', factors: ['Low Attendance', 'Failing Grades'] },
-    { id: '2', name: 'Sam Smith', major: 'Electrical Eng', riskLevel: 'Medium', factors: ['Missed Assignments'] },
-    { id: '3', name: 'Jordan Lee', major: 'Mathematics', riskLevel: 'Low', factors: ['None'] },
-    { id: '4', name: 'Casey Woods', major: 'Physics', riskLevel: 'High', factors: ['Low Attendance', 'Behavioral'] },
-];
-
 export const RiskMonitoring = () => {
-    const [riskScatterData, setRiskScatterData] = useState(initialScatterData);
-    const [studentRiskList, setStudentRiskList] = useState(initialStudentRiskList);
+    const [riskScatterData, setRiskScatterData] = useState<any[]>([]);
+    const [studentRiskList, setStudentRiskList] = useState<any[]>([]);
     const [isAdding, setIsAdding] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState("");
 
     const [formData, setFormData] = useState({
@@ -40,6 +25,49 @@ export const RiskMonitoring = () => {
         absences: 0,
         currentGPA: 7.5
     });
+
+    useEffect(() => {
+        const fetchStudents = async () => {
+            try {
+                const response = await getStudents();
+                const students = response.data || [];
+
+                // Map to Scatter Data
+                const scatter = students.map((s: any) => ({
+                    attendance: s.attendancePercentage,
+                    gpa: (s.cgpa / 10) * 4, // Approx mapped to 4.0 scale if cgpa is out of 10
+                    amount: s.riskScore || 50,
+                    name: s.user?.name || "Unknown"
+                }));
+                setRiskScatterData(scatter);
+
+                // Map to Risk List
+                const riskList = students.map((s: any) => {
+                    const factors = [];
+                    if (s.attendancePercentage < 80) factors.push('Low Attendance');
+                    if (s.cgpa < 6.0) factors.push('Low GPA');
+                    if (s.feePaymentStatus !== 'Paid') factors.push('Fee Pending');
+                    if (factors.length === 0) factors.push('None');
+
+                    return {
+                        id: s._id,
+                        name: s.user?.name || "Unknown",
+                        major: s.department || "Undeclared",
+                        riskLevel: s.dropoutRisk || "Not Assessed",
+                        factors
+                    };
+                });
+                setStudentRiskList(riskList);
+            } catch (err) {
+                console.error("Failed to load students:", err);
+                setError('Failed to load risk data');
+            } finally {
+                setInitialLoading(false);
+            }
+        };
+
+        fetchStudents();
+    }, []);
 
     const handleAddStudent = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -120,19 +148,38 @@ export const RiskMonitoring = () => {
             setRiskScatterData([...riskScatterData, newScatter]);
             
             setIsAdding(false);
-            setFormData({ name: '', major: '', absences: 0, currentGPA: 3.0 });
+            setFormData({ name: '', major: '', absences: 0, currentGPA: 7.5 });
         } catch (error) {
             console.error("Failed to predict dropout:", error);
-            alert("Error running prediction. Ensure the backend FastAPI server is running.");
+            alert("Error running prediction. Ensure the backend ML server is running.");
         } finally {
             setLoading(false);
         }
     };
 
     const filteredStudents = studentRiskList.filter(s => 
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        s.major.toLowerCase().includes(searchTerm.toLowerCase())
+        (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (s.major || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    if (initialLoading) {
+        return (
+            <div className="flex items-center justify-center h-full w-full py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading risk data...</span>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full w-full py-20 text-destructive">
+                <AlertOctagon className="h-12 w-12 mb-4" />
+                <h3 className="text-xl font-bold">Error</h3>
+                <p>{error}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col gap-6 w-full animate-in fade-in duration-500 pb-10">
@@ -209,16 +256,20 @@ export const RiskMonitoring = () => {
                     <CardDescription>Predictive visualization of student risk factors. Larger circles indicate higher model-predicted risk scores.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis type="number" dataKey="attendance" name="Attendance %" unit="%" domain={[40, 100]} />
-                            <YAxis type="number" dataKey="gpa" name="GPA" unit="" domain={[0.0, 4.0]} />
-                            <ZAxis type="number" dataKey="amount" range={[60, 400]} name="Risk Weight" />
-                            <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                            <Scatter name="Students" data={riskScatterData} fill="hsl(var(--destructive))" opacity={0.7} />
-                        </ScatterChart>
-                    </ResponsiveContainer>
+                    {riskScatterData.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">No scatter data available</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis type="number" dataKey="attendance" name="Attendance %" unit="%" domain={[40, 100]} />
+                                <YAxis type="number" dataKey="gpa" name="GPA" unit="" domain={[0.0, 4.0]} />
+                                <ZAxis type="number" dataKey="amount" range={[60, 400]} name="Risk Weight" />
+                                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                                <Scatter name="Students" data={riskScatterData} fill="hsl(var(--destructive))" opacity={0.7} />
+                            </ScatterChart>
+                        </ResponsiveContainer>
+                    )}
                 </CardContent>
             </Card>
 
@@ -226,9 +277,9 @@ export const RiskMonitoring = () => {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Live Intervention Roster</CardTitle>
-                        <CardDescription>Comprehensive list of students and detailed risk profiles updated in real-time</CardDescription>
+                        <CardDescription>Comprehensive list of students and detailed risk profiles updated from the backend</CardDescription>
                     </div>
-                    <div className="relative w-64">
+                    <div className="relative w-64 hidden sm:block">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
                             type="search" 
@@ -245,7 +296,7 @@ export const RiskMonitoring = () => {
                             <TableRow>
                                 <TableHead>Student Name</TableHead>
                                 <TableHead>Major</TableHead>
-                                <TableHead>Risk Factors (Model Extracted)</TableHead>
+                                <TableHead>Risk Factors</TableHead>
                                 <TableHead className="text-right">Risk Level</TableHead>
                             </TableRow>
                         </TableHeaderUI>
@@ -263,13 +314,13 @@ export const RiskMonitoring = () => {
                                     <TableCell>{student.major}</TableCell>
                                     <TableCell>
                                         <div className="flex gap-1 flex-wrap">
-                                            {student.factors.map((factor, idx) => (
+                                            {student.factors.map((factor: string, idx: number) => (
                                                 <Badge key={idx} variant="secondary" className="text-xs">{factor}</Badge>
                                             ))}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Badge variant={student.riskLevel === 'High' ? 'destructive' : student.riskLevel === 'Medium' ? 'warning' : 'success'}>
+                                        <Badge variant={student.riskLevel === 'High' ? 'destructive' : student.riskLevel === 'Medium' ? 'warning' : student.riskLevel === 'Low' ? 'success' : 'secondary'}>
                                             {student.riskLevel}
                                         </Badge>
                                     </TableCell>

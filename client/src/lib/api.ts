@@ -38,10 +38,11 @@ export interface PredictionResponse {
     risk_score: number;
 }
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:5000/api';
+const ML_API_BASE_URL = 'http://localhost:8000';
 
 export async function predictStudentDropout(data: StudentData): Promise<PredictionResponse> {
-    const response = await fetch(`${API_BASE_URL}/predict`, {
+    const response = await fetch(`${ML_API_BASE_URL}/predict`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -53,5 +54,48 @@ export async function predictStudentDropout(data: StudentData): Promise<Predicti
         throw new Error('Failed to get prediction');
     }
 
+    return await response.json();
+}
+
+// Ensure the token is passed in headers
+const getAuthHeaders = () => {
+    // You can pull this from your auth state/localStorage if you add JWT logic later.
+    // Assuming localStorage for Demo purposes
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+};
+
+export async function getDashboardStats() {
+    const response = await fetch(`${API_BASE_URL}/dashboard/stats`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch dashboard stats');
+    return await response.json();
+}
+
+export async function getStudents() {
+    const response = await fetch(`${API_BASE_URL}/v1/students`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch students');
+    return await response.json();
+}
+
+export async function getStudent(id: string) {
+    const response = await fetch(`${API_BASE_URL}/v1/students/${id}`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch student profile');
+    return await response.json();
+}
+
+export async function getRecentAttendance() {
+    const response = await fetch(`${API_BASE_URL}/v1/attendance/recent`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch recent attendance');
     return await response.json();
 }

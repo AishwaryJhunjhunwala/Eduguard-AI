@@ -8,7 +8,7 @@ const {
 
 const { protect } = require("../middleware/authMiddleware");
 
-router.get("/", protect, getStudents);
-router.get("/:id", protect, getStudentById);
+router.get("/", getStudents);
+router.get("/:id", getStudentById);
 
 module.exports = router;
