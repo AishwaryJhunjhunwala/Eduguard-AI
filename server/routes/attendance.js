@@ -4,9 +4,9 @@ const router = express.Router();
 const {
   markAttendance,
   getRecentAttendance
-} = require("../controllers/attendanceController");
+} = require("../controllers/attendance");
 
-const { protect } = require("../middleware/authMiddleware");
+const { protect } = require("../middleware/auth");
 
 router.post("/", protect, markAttendance);
 router.get("/recent", protect, getRecentAttendance);

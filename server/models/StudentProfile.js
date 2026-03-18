@@ -53,7 +53,20 @@ const StudentProfileSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  riskScore: {
+  type: Number,
+  min: 0,
+  max: 100,
+  default: 0
+},
+
+performanceScore: {
+  type: Number,
+  min: 0,
+  max: 100,
+  default: 0
+}
 });
 
 module.exports = mongoose.model('StudentProfile', StudentProfileSchema);

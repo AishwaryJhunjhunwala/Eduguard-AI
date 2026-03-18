@@ -1,18 +1,58 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
-import { QrCode, FileText } from 'lucide-react';
+import { QrCode, FileText, Loader2, AlertOctagon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader as TableHeaderUI, TableRow } from '../components/ui/table';
 import { Badge } from '../components/ui/badge';
 import { PageHeader } from '../components/ui/page-header';
-
-const recentAttendance = [
-    { id: '1', date: '2023-11-15', course: 'CS101', student: 'Alex Johnson', status: 'Present' },
-    { id: '2', date: '2023-11-15', course: 'CS101', student: 'Sam Smith', status: 'Absent' },
-    { id: '3', date: '2023-11-15', course: 'CS202', student: 'Jordan Lee', status: 'Present' },
-    { id: '4', date: '2023-11-14', course: 'CS305', student: 'Emily Chen', status: 'Late' },
-];
+import { getRecentAttendance } from '../lib/api';
 
 export const Attendance = () => {
+    const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        const fetchAttendance = async () => {
+            try {
+                const response = await getRecentAttendance();
+                setRecentAttendance(Array.isArray(response) ? response : []);
+            } catch (err) {
+                console.error("Failed to fetch recent attendance:", err);
+                setError('Failed to load attendance records.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAttendance();
+    }, []);
+
+    const formatDate = (dateString: string) => {
+        if (!dateString) return "N/A";
+        const d = new Date(dateString);
+        return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center w-full py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading attendance records...</span>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center w-full py-20 text-destructive">
+                <AlertOctagon className="h-12 w-12 mb-4" />
+                <h3 className="text-xl font-bold">Error</h3>
+                <p>{error}</p>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col gap-6 w-full animate-in fade-in duration-500 pb-8">
             <PageHeader
@@ -58,31 +98,42 @@ export const Attendance = () => {
                                     </TableRow>
                                 </TableHeaderUI>
                                 <TableBody>
-                                    {recentAttendance.map((record) => (
-                                        <TableRow key={record.id} className="hover:bg-muted/20 transition-colors">
-                                            <TableCell className="text-muted-foreground text-sm font-medium">{record.date}</TableCell>
-                                            <TableCell className="font-medium">{record.course}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">
-                                                        {record.student.substring(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <span className="font-medium text-sm">{record.student}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Badge
-                                                    variant={
-                                                        record.status === 'Present' ? 'success' :
-                                                            record.status === 'Absent' ? 'destructive' : 'warning'
-                                                    }
-                                                    className="shadow-none border-transparent font-medium"
-                                                >
-                                                    {record.status}
-                                                </Badge>
+                                    {recentAttendance.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                No recent attendance records found.
                                             </TableCell>
                                         </TableRow>
-                                    ))}
+                                    )}
+                                    {recentAttendance.map((record) => {
+                                        const studentName = record.student?.user?.name || record.student?.name || "Unknown";
+                                        
+                                        return (
+                                            <TableRow key={record._id} className="hover:bg-muted/20 transition-colors">
+                                                <TableCell className="text-muted-foreground text-sm font-medium">{formatDate(record.date)}</TableCell>
+                                                <TableCell className="font-medium">{record.course || "General"}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">
+                                                            {studentName.substring(0, 2).toUpperCase()}
+                                                        </div>
+                                                        <span className="font-medium text-sm">{studentName}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Badge
+                                                        variant={
+                                                            record.status === 'Present' ? 'success' :
+                                                                record.status === 'Absent' ? 'destructive' : 'warning'
+                                                        }
+                                                        className="shadow-none border-transparent font-medium"
+                                                    >
+                                                        {record.status || "Unknown"}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </div>
