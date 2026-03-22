@@ -6,8 +6,10 @@ import { PageHeader } from '../components/ui/page-header';
 import { AttendanceChart } from '../components/features/AttendanceChart';
 import { SubjectProgressList } from '../components/features/SubjectProgressList';
 import { getStudents, getDashboardStats } from '../lib/api';
+import { useAuth } from '../store/AuthContext';
 
 export const StudentDashboard = () => {
+    const { user } = useAuth();
     const [student, setStudent] = useState<any>(null);
     const [performanceData, setPerformanceData] = useState<any[]>([]);
     const [subjectProgress, setSubjectProgress] = useState<any[]>([]);
@@ -23,10 +25,12 @@ export const StudentDashboard = () => {
                     getDashboardStats()
                 ]);
 
-                // Find a student or fallback to the first one available
+                // Find a student matching authenticated user or fallback
                 const students = studentsRes.data || [];
-                const targetStudent = students.find((s: any) => s.user?.name?.toLowerCase().includes('emily')) || students[0];
-                setStudent(targetStudent);
+                const targetStudent = user?.email 
+                    ? students.find((s: any) => s.user?.email === user.email) 
+                    : students[0];
+                setStudent(targetStudent || students[0]);
 
                 // Map backend performance data to SubjectProgress format
                 const backendPerformance = statsRes?.performanceData || [];
@@ -150,8 +154,8 @@ export const StudentDashboard = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">24<span className="text-lg text-muted-foreground font-normal">/26</span></div>
-                        <p className="text-sm text-muted-foreground mt-2">2 remaining this week</p>
+                        <div className="text-3xl font-bold">{student?.assignments || 10}<span className="text-lg text-muted-foreground font-normal">/10</span></div>
+                        <p className="text-sm text-muted-foreground mt-2">Completed</p>
                     </CardContent>
                 </Card>
 

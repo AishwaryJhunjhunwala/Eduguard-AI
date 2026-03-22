@@ -14,6 +14,7 @@ const seedStudents = async () => {
   try {
 
     await StudentProfile.deleteMany({});
+    await User.deleteMany({ role: "Student" });
 
       const students = [
   {
@@ -177,7 +178,34 @@ const seedStudents = async () => {
     semester: 5
   }
 ];
-    for (const student of students) {
+    const riskLevels = ['Low', 'Medium', 'High'];
+    
+    for (let i = 0; i < students.length; i++) {
+      const student = students[i];
+      // Distribute evenly: 0,1,2, 0,1,2...
+      const risk = riskLevels[i % 3];
+      
+      let score = 0;
+      let attendanceVal = 100;
+      let marksVal = 0;
+      let assignmentsVal = 10;
+      
+      if (risk === 'Low') {
+        score = Math.floor(Math.random() * 20) + 80; // 80-100
+        attendanceVal = Math.floor(Math.random() * 10) + 90; // 90-100
+        marksVal = Math.floor(Math.random() * 20) + 80; // 80-100
+        assignmentsVal = 10;
+      } else if (risk === 'Medium') {
+        score = Math.floor(Math.random() * 30) + 50; // 50-79
+        attendanceVal = Math.floor(Math.random() * 20) + 70; // 70-89
+        marksVal = Math.floor(Math.random() * 20) + 60; // 60-79
+        assignmentsVal = Math.floor(Math.random() * 3) + 6; // 6-8
+      } else {
+        score = Math.floor(Math.random() * 40) + 10; // 10-49
+        attendanceVal = Math.floor(Math.random() * 30) + 40; // 40-69
+        marksVal = Math.floor(Math.random() * 30) + 30; // 30-59
+        assignmentsVal = Math.floor(Math.random() * 4) + 2; // 2-5
+      }
 
       const user = await User.create({
         name: student.name,
@@ -189,10 +217,19 @@ const seedStudents = async () => {
       await StudentProfile.create({
         user: user._id,
         studentId: student.studentId,
+        rollNumber: student.studentId, // Using studentId as rollNumber
         department: student.department,
-        semester: student.semester
+        semester: student.semester,
+        attendancePercentage: attendanceVal,
+        attendance: attendanceVal,
+        cgpa: marksVal / 10,
+        marks: marksVal,
+        assignments: assignmentsVal,
+        dropoutRisk: risk,
+        riskLevel: risk,
+        riskScore: 100 - score,
+        predictionScore: score
       });
-
     }
 
     console.log("Students seeded successfully");

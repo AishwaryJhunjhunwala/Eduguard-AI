@@ -99,3 +99,34 @@ export async function getRecentAttendance() {
     if (!response.ok) throw new Error('Failed to fetch recent attendance');
     return await response.json();
 }
+
+export async function addStudent(data: any) {
+    const response = await fetch(`${API_BASE_URL}/v1/students`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to add student');
+    return await response.json();
+}
+
+export async function loginUser(credentials: any) {
+    const response = await fetch(`${API_BASE_URL}/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials)
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Login failed');
+    }
+    return await response.json();
+}
+
+export async function getMe() {
+    const response = await fetch(`${API_BASE_URL}/v1/auth/me`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch user');
+    return await response.json();
+}

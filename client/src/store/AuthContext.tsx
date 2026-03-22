@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Role, User } from '../types';
+import { loginUser, getMe } from '../lib/api';
 
 interface AuthContextType {
     user: User | null;
     role: Role | null;
-    login: (role: Role) => void;
+    login: (credentials: any) => Promise<void>;
     logout: () => void;
     isLoading: boolean;
 }
@@ -17,36 +18,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check local storage on mount (mocking persistence)
-        const storedRole = localStorage.getItem('role') as Role | null;
-        if (storedRole) {
-            setRole(storedRole);
-            // Mock user generation based on role
-            setUser({
-                id: 'usr-mocked',
-                name: storedRole === 'admin' ? 'System Admin' :
-                    storedRole === 'faculty' ? 'Dr. Smith' :
-                        storedRole === 'student' ? 'Alex Johnson' : 'Counselor Jane',
-                email: `${storedRole}@eduguard.ai`,
-                role: storedRole
-            });
-        }
-        setIsLoading(false);
+        const initAuth = async () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const userData = await getMe();
+                    const u = userData.data;
+                    const r = u.role.toLowerCase() as Role;
+                    setRole(r);
+                    setUser({
+                        id: u._id,
+                        name: u.name,
+                        email: u.email,
+                        role: r
+                    });
+                } catch (error) {
+                    console.error("Failed to load user", error);
+                    localStorage.removeItem('token');
+                }
+            }
+            setIsLoading(false);
+        };
+        initAuth();
     }, []);
 
-    const login = (selectedRole: Role) => {
-        localStorage.setItem('role', selectedRole);
-        setRole(selectedRole);
+    const login = async (credentials: any) => {
+        const res = await loginUser(credentials);
+        const token = res.token;
+        localStorage.setItem('token', token);
+        
+        const userData = await getMe();
+        const u = userData.data;
+        const r = u.role.toLowerCase() as Role;
+        
+        setRole(r);
         setUser({
-            id: `usr-${Date.now()}`,
-            name: `Mock ${selectedRole}`,
-            email: `${selectedRole}@eduguard.ai`,
-            role: selectedRole
+            id: u._id,
+            name: u.name,
+            email: u.email,
+            role: r
         });
     };
 
     const logout = () => {
-        localStorage.removeItem('role');
+        localStorage.removeItem('token');
         setRole(null);
         setUser(null);
     };

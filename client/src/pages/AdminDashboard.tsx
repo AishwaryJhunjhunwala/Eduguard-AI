@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
-import { Users, AlertTriangle, UserCheck, TrendingUp, Loader2, AlertOctagon } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Users, AlertTriangle, UserCheck, AlertOctagon, Loader2 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader as TableHeaderUI, TableRow } from '../components/ui/table';
@@ -116,14 +116,14 @@ export const AdminDashboard = () => {
 
                 <Card>
                     <CardHeader className="flex flex-row justify-between pb-2">
-                        <CardTitle className="text-sm">Performance Avg</CardTitle>
-                        <TrendingUp className="h-4 w-4" />
+                        <CardTitle className="text-sm">Risk Factor Avg</CardTitle>
+                        <AlertOctagon className="h-4 w-4 text-orange-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
                             {performanceData.length ? 
-                              Math.round(performanceData.reduce((a,b)=>a+(b.score||b.average||0),0)/performanceData.length) 
-                              : 0}
+                              Math.round(100 - (performanceData.reduce((a,b)=>a+(b.score||b.average||0),0)/performanceData.length)) 
+                              : 0}%
                         </div>
                     </CardContent>
                 </Card>

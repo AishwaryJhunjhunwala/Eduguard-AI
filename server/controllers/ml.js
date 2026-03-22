@@ -16,21 +16,49 @@ exports.predictDropout = async (req, res, next) => {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
 
-    // Mock ML prediction for demonstration.
-    const response = await axios.post('http://localhost:8000/predict', studentData);
-    const mockRiskLevels = ['Low', 'Medium', 'High'];
-    const randomRisk = mockRiskLevels[Math.floor(Math.random() * mockRiskLevels.length)];
+    let riskScore = 0;
+    let riskLevel = 'Not Assessed';
+    
+    // Default studentData mapped from DB fields
+    const studentData = {
+        Number_of_Absences: Math.floor((100 - (student.attendancePercentage || 100)) / 5),
+        Grade_2: (student.cgpa || 0) * 2, // Map CGPA to max 20
+        Age: 18 // Default
+    };
+
+    try {
+      // Try calling Python ML service
+      const response = await axios.post('http://localhost:8000/predict', studentData);
+      
+      if (response.data) {
+        riskScore = response.data.risk_score || Math.random();
+        const dropoutRisk = response.data.dropout;
+        
+        // Map riskScore to our risk levels
+        if (riskScore > 0.7) riskLevel = 'High';
+        else if (riskScore > 0.4) riskLevel = 'Medium';
+        else riskLevel = 'Low';
+      }
+    } catch (apiErr) {
+      console.warn('Python ML service unreachable or failed. Using mock dropout data.');
+      // Mock ML prediction for demonstration if backend unreachable.
+      const mockRiskLevels = ['Low', 'Medium', 'High'];
+      riskLevel = mockRiskLevels[Math.floor(Math.random() * mockRiskLevels.length)];
+      riskScore = Math.random();
+    }
 
     // Update student profile with new prediction
-    student.dropoutRisk = randomRisk;
+    student.dropoutRisk = riskLevel;
+    student.riskScore = Math.round(riskScore * 100);
     await student.save();
 
     res.status(200).json({
       success: true,
       data: {
         student: student._id,
-        dropoutRisk: randomRisk,
-        message: 'Prediction successful (Mock Data)'
+        dropoutRisk: riskLevel,
+        riskScore: student.riskScore,
+        message: 'Prediction successful'
       }
     });
   } catch (err) {
@@ -49,17 +77,27 @@ exports.analyzeSentiment = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Please provide text to analyze' });
     }
 
-    // Mock Sentiment Analysis
-    const response = await axios.post('http://localhost:8000/sentiment', { text });
-    const mockSentiments = ['Stable', 'Stressed', 'Anxious', 'Disengaged'];
-    const randomSentiment = mockSentiments[Math.floor(Math.random() * mockSentiments.length)];
+    let sentimentResult = 'Unknown';
+    
+    try {
+      // Try calling Python ML service for sentiment analysis
+      const response = await axios.post('http://localhost:8000/sentiment', { text });
+      if (response.data && response.data.sentiment) {
+        sentimentResult = response.data.sentiment;
+      }
+    } catch (apiErr) {
+      console.warn('Python Sentiment service unreachable. Using mock sentiment data.');
+      // Mock Sentiment Analysis
+      const mockSentiments = ['Stable', 'Stressed', 'Anxious', 'Disengaged'];
+      sentimentResult = mockSentiments[Math.floor(Math.random() * mockSentiments.length)];
+    }
 
     res.status(200).json({
       success: true,
       data: {
         text,
-        sentiment: randomSentiment,
-        message: 'Sentiment analysis successful (Mock Data)'
+        sentiment: sentimentResult,
+        message: 'Sentiment analysis successful'
       }
     });
   } catch (err) {

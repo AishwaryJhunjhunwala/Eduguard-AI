@@ -11,6 +11,11 @@ const StudentProfileSchema = new mongoose.Schema({
     required: [true, 'Please add a student ID'],
     unique: true
   },
+  rollNumber: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   department: {
     type: String,
     required: [true, 'Please add a department']
@@ -23,10 +28,22 @@ const StudentProfileSchema = new mongoose.Schema({
     type: Number,
     default: 100
   },
+  attendance: {
+    type: Number,
+    default: 100
+  },
   cgpa: {
     type: Number,
     min: 0,
     max: 10,
+    default: 0
+  },
+  marks: {
+    type: Number,
+    default: 0
+  },
+  assignments: {
+    type: Number,
     default: 0
   },
   feePaymentStatus: {
@@ -45,6 +62,11 @@ const StudentProfileSchema = new mongoose.Schema({
     enum: ['Low', 'Medium', 'High', 'Not Assessed'],
     default: 'Not Assessed'
   },
+  riskLevel: {
+    type: String,
+    enum: ['Low', 'Medium', 'High', 'Not Assessed'],
+    default: 'Not Assessed'
+  },
   mentalHealthStatus: {
     type: String,
     enum: ['Stable', 'Stressed', 'Anxious', 'Disengaged', 'Unknown'],
@@ -55,6 +77,12 @@ const StudentProfileSchema = new mongoose.Schema({
     default: Date.now
   },
   riskScore: {
+  type: Number,
+  min: 0,
+  max: 100,
+  default: 0
+},
+predictionScore: {
   type: Number,
   min: 0,
   max: 100,

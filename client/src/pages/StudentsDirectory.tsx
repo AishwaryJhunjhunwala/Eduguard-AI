@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Download, Plus, Search, Loader2, AlertOctagon } from 'lucide-react';
 import { PageHeader } from '../components/ui/page-header';
-import { getStudents } from '../lib/api';
+import { getStudents, addStudent } from '../lib/api';
 
 export const StudentsDirectory = () => {
     const navigate = useNavigate();
@@ -15,6 +15,17 @@ export const StudentsDirectory = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    
+    const [showModal, setShowModal] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        rollNumber: '',
+        department: '',
+        attendance: 100,
+        cgpa: 8.0
+    });
 
     useEffect(() => {
         const fetchStudents = async () => {
@@ -31,6 +42,27 @@ export const StudentsDirectory = () => {
 
         fetchStudents();
     }, []);
+
+    const handleAddStudent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            await addStudent(formData);
+            setShowModal(false);
+            setFormData({ name: '', email: '', rollNumber: '', department: '', attendance: 100, cgpa: 8.0 });
+            
+            // Refresh directory
+            setLoading(true);
+            const response = await getStudents();
+            setStudentsList(response.data || []);
+        } catch (error) {
+            console.error(error);
+            alert("Error adding student. Make sure email is not already in use.");
+        } finally {
+            setLoading(false);
+            setSubmitting(false);
+        }
+    };
 
     const filteredStudents = studentsList.filter(s => 
         (s.user?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -65,10 +97,45 @@ export const StudentsDirectory = () => {
                 action={
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" className="hidden md:flex shadow-sm bg-background border-border/50 text-muted-foreground hover:text-foreground"><Download className="mr-2 h-4 w-4" /> Export</Button>
-                        <Button size="sm" className="shadow-sm"><Plus className="mr-2 h-4 w-4" /> Add Student</Button>
+                        <Button size="sm" className="shadow-sm" onClick={() => setShowModal(true)}><Plus className="mr-2 h-4 w-4" /> Add Student</Button>
                     </div>
                 }
             />
+
+            {showModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <Card className="w-full max-w-md bg-background relative z-50 shadow-lg">
+                        <CardHeader>
+                            <CardTitle>Add New Student</CardTitle>
+                            <CardDescription>Creates user account and automatically calculates initial risk profile via AI.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleAddStudent} className="flex flex-col gap-4">
+                                <Input required placeholder="Full Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                                <Input required type="email" placeholder="Email Address" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                                <Input required placeholder="Roll Number (e.g. CS24B001)" value={formData.rollNumber} onChange={(e) => setFormData({...formData, rollNumber: e.target.value})} />
+                                <Input required placeholder="Department" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} />
+                                <div className="flex gap-4">
+                                    <div className="w-1/2">
+                                        <label className="text-xs text-muted-foreground mb-1 block">Attendance %</label>
+                                        <Input required type="number" min="0" max="100" value={formData.attendance} onChange={(e) => setFormData({...formData, attendance: parseInt(e.target.value) || 0})} />
+                                    </div>
+                                    <div className="w-1/2">
+                                        <label className="text-xs text-muted-foreground mb-1 block">GPA (0-10)</label>
+                                        <Input required type="number" min="0" max="10" step="0.1" value={formData.cgpa} onChange={(e) => setFormData({...formData, cgpa: parseFloat(e.target.value) || 0})} />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-2 mt-4">
+                                    <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={submitting}>Cancel</Button>
+                                    <Button type="submit" disabled={submitting}>
+                                        {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save & Analyze"}
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
             <Card className="shadow-sm border-border/50 overflow-hidden">
                 <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-muted/10 pb-4 border-b border-border/30">
