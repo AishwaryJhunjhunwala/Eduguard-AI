@@ -14,10 +14,10 @@ import { AuthProvider, useAuth } from './store/AuthContext';
 
 // Mock routing based on selected role
 const RoleBasedDashboard = () => {
-  const role = localStorage.getItem('role') || 'admin';
+  const { role } = useAuth();
 
   if (role === 'admin' || role === 'counselor') return <AdminDashboard />;
-  if (role === 'faculty') return <FacultyDashboard />;
+  if (role === 'mentor') return <FacultyDashboard />;
   if (role === 'student') return <StudentDashboard />;
   return <AdminDashboard />;
 };

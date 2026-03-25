@@ -130,3 +130,11 @@ export async function getMe() {
     if (!response.ok) throw new Error('Failed to fetch user');
     return await response.json();
 }
+
+export async function getAlerts() {
+    const response = await fetch(`${API_BASE_URL}/v1/alerts`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch alerts');
+    return await response.json();
+}

@@ -1,41 +1,33 @@
 import { Bell, Search, Menu, Moon, Sun } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useAuth } from '../store/AuthContext';
+import { useNotifications } from '../hooks/useNotifications';
+import { useTheme } from '../hooks/useTheme';
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface NavbarProps {
     onMenuClick?: () => void;
 }
 
 export const Navbar = ({ onMenuClick }: NavbarProps) => {
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const { user } = useAuth();
+    const { isDarkMode, toggleTheme } = useTheme();
+    const { alerts } = useNotifications(user);
+    const [showNotifications, setShowNotifications] = useState(false);
 
-    useEffect(() => {
-        // Check initial theme
-        const isDark = document.documentElement.classList.contains('dark');
-        setIsDarkMode(isDark);
-    }, []);
-
-    const toggleTheme = () => {
-        const root = document.documentElement;
-        if (isDarkMode) {
-            root.classList.remove('dark');
-            setIsDarkMode(false);
-            localStorage.setItem('theme', 'light');
-        } else {
-            root.classList.add('dark');
-            setIsDarkMode(true);
-            localStorage.setItem('theme', 'dark');
-        }
-    };
+    const unreadAlertsCount = alerts.filter((alert) => alert.status === 'Open').length;
 
     return (
         <header className="flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-md px-4 lg:px-6 sticky top-0 z-30">
+            {/* Mobile menu button */}
             <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle navigation menu</span>
             </Button>
 
+            {/* Search bar */}
             <div className="w-full flex-1">
                 <form>
                     <div className="relative group max-w-md">
@@ -49,24 +41,56 @@ export const Navbar = ({ onMenuClick }: NavbarProps) => {
                 </form>
             </div>
 
+            {/* Right side actions */}
             <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full text-muted-foreground hover:text-foreground">
+                {/* Theme toggle */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleTheme}
+                    className="rounded-full text-muted-foreground hover:text-foreground"
+                >
                     {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                     <span className="sr-only">Toggle theme</span>
                 </Button>
-                <Button variant="ghost" size="icon" className="relative rounded-full text-muted-foreground hover:text-foreground">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute right-2 top-2 flex h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
-                    <span className="sr-only">Toggle notifications</span>
-                </Button>
+
+                {/* Notifications */}
+                <div className="relative">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowNotifications(!showNotifications)}
+                        className="relative rounded-full text-muted-foreground hover:text-foreground"
+                    >
+                        <Bell className="h-5 w-5" />
+                        {unreadAlertsCount > 0 && (
+                            <span className="absolute right-2 top-2 flex h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
+                        )}
+                        <span className="sr-only">Toggle notifications</span>
+                    </Button>
+
+                    <NotificationDropdown
+                        alerts={alerts}
+                        isOpen={showNotifications}
+                        onClose={() => setShowNotifications(false)}
+                    />
+                </div>
+
+                {/* User profile */}
                 <div className="h-6 w-px bg-border mx-1 hidden sm:block"></div>
                 <div className="flex items-center gap-3 ml-1 cursor-pointer hover:bg-muted/50 p-1.5 px-2 rounded-full transition-colors">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold shadow-sm border border-primary/20">
-                        <span className="text-sm font-medium">JD</span>
+                        <span className="text-sm font-medium">
+                            {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                        </span>
                     </div>
                     <div className="hidden flex-col md:flex items-start">
-                        <span className="text-sm font-semibold leading-none">John Doe</span>
-                        <span className="text-xs text-muted-foreground mt-1">Admin</span>
+                        <span className="text-sm font-semibold leading-none">
+                            {user?.name || 'User'}
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1 capitalize">
+                            {user?.role || 'Guest'}
+                        </span>
                     </div>
                 </div>
             </div>

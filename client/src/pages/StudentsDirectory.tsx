@@ -9,6 +9,16 @@ import { Download, Plus, Search, Loader2, AlertOctagon } from 'lucide-react';
 import { PageHeader } from '../components/ui/page-header';
 import { getStudents, addStudent } from '../lib/api';
 
+type StudentFormState = {
+    name: string;
+    email: string;
+    password: string;
+    rollNumber: string;
+    department: string;
+    attendance: number;
+    cgpa: number;
+};
+
 export const StudentsDirectory = () => {
     const navigate = useNavigate();
     const [studentsList, setStudentsList] = useState<any[]>([]);
@@ -18,9 +28,10 @@ export const StudentsDirectory = () => {
     
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<StudentFormState>({
         name: '',
         email: '',
+        password: '',
         rollNumber: '',
         department: '',
         attendance: 100,
@@ -49,7 +60,7 @@ export const StudentsDirectory = () => {
         try {
             await addStudent(formData);
             setShowModal(false);
-            setFormData({ name: '', email: '', rollNumber: '', department: '', attendance: 100, cgpa: 8.0 });
+            setFormData({ name: '', email: '', password: '', rollNumber: '', department: '', attendance: 100, cgpa: 8.0 });
             
             // Refresh directory
             setLoading(true);
@@ -62,6 +73,39 @@ export const StudentsDirectory = () => {
             setLoading(false);
             setSubmitting(false);
         }
+    };
+
+    const handleExport = () => {
+        if (studentsList.length === 0) {
+            alert('No students to export');
+            return;
+        }
+
+        // Create CSV content
+        const headers = ['Name', 'Email', 'Roll Number', 'Department', 'Attendance %', 'GPA', 'Risk Level'];
+        const csvContent = [
+            headers.join(','),
+            ...studentsList.map(student => [
+                `"${student.user?.name || ''}"`,
+                `"${student.user?.email || ''}"`,
+                `"${student.studentId || ''}"`,
+                `"${student.department || ''}"`,
+                student.attendancePercentage || 0,
+                student.cgpa ? (student.cgpa / 10 * 4).toFixed(2) : 0,
+                `"${student.dropoutRisk || 'Unknown'}"`
+            ].join(','))
+        ].join('\n');
+
+        // Create and download file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'students_directory.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const filteredStudents = studentsList.filter(s => 
@@ -96,7 +140,7 @@ export const StudentsDirectory = () => {
                 description="Manage and view all student administrative records."
                 action={
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="hidden md:flex shadow-sm bg-background border-border/50 text-muted-foreground hover:text-foreground"><Download className="mr-2 h-4 w-4" /> Export</Button>
+                        <Button variant="outline" size="sm" className="hidden md:flex shadow-sm bg-background border-border/50 text-muted-foreground hover:text-foreground" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export</Button>
                         <Button size="sm" className="shadow-sm" onClick={() => setShowModal(true)}><Plus className="mr-2 h-4 w-4" /> Add Student</Button>
                     </div>
                 }
@@ -107,12 +151,13 @@ export const StudentsDirectory = () => {
                     <Card className="w-full max-w-md bg-background relative z-50 shadow-lg">
                         <CardHeader>
                             <CardTitle>Add New Student</CardTitle>
-                            <CardDescription>Creates user account and automatically calculates initial risk profile via AI.</CardDescription>
+                            <CardDescription>Creates user account with login credentials and automatically calculates initial risk profile via AI.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleAddStudent} className="flex flex-col gap-4">
                                 <Input required placeholder="Full Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
                                 <Input required type="email" placeholder="Email Address" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                                <Input type="password" placeholder="Password (leave empty for default 'student123')" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
                                 <Input required placeholder="Roll Number (e.g. CS24B001)" value={formData.rollNumber} onChange={(e) => setFormData({...formData, rollNumber: e.target.value})} />
                                 <Input required placeholder="Department" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} />
                                 <div className="flex gap-4">

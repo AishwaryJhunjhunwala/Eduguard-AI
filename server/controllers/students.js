@@ -103,6 +103,18 @@ exports.createStudent = async (req, res, next) => {
       riskScore: 100 - predictionScore
     });
 
+    // 4. Create automatic alert for high-risk students
+    if (riskLevel === 'High') {
+      const Alert = require('../models/Alert');
+      await Alert.create({
+        student: studentProfile._id,
+        type: 'Academic',
+        severity: 'High',
+        message: `Student ${user.name} (${studentProfile.studentId}) has been identified as high risk for dropout. Immediate intervention recommended.`,
+        status: 'Open'
+      });
+    }
+
     const populatedProfile = await StudentProfile.findById(studentProfile._id).populate('user', 'name email');
 
     res.status(201).json({
@@ -119,18 +131,36 @@ exports.createStudent = async (req, res, next) => {
 // @access  Private/Admin/Mentor
 exports.updateStudent = async (req, res, next) => {
   try {
-    const student = await StudentProfile.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    });
+    const student = await StudentProfile.findById(req.params.id);
 
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
 
+    const oldRiskLevel = student.dropoutRisk;
+    const updatedStudent = await StudentProfile.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+
+    // Create alert if risk level changed to High
+    if (req.body.dropoutRisk === 'High' && oldRiskLevel !== 'High') {
+      const Alert = require('../models/Alert');
+      const User = require('../models/User');
+      const user = await User.findById(updatedStudent.user);
+
+      await Alert.create({
+        student: updatedStudent._id,
+        type: 'Academic',
+        severity: 'High',
+        message: `Student ${user.name} (${updatedStudent.studentId}) risk level has escalated to High. Immediate attention required.`,
+        status: 'Open'
+      });
+    }
+
     res.status(200).json({
       success: true,
-      data: student
+      data: updatedStudent
     });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

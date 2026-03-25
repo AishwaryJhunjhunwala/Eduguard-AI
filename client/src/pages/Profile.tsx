@@ -26,7 +26,7 @@ export const Profile = () => {
                 badge={
                     <Badge variant="outline" className="gap-1.5 px-3 py-1">
                         {role === 'student' ? <GraduationCap className="h-4 w-4 text-primary" /> : <ShieldCheck className="h-4 w-4 text-primary" />}
-                        {role === 'admin' ? 'Administrator' : role === 'faculty' ? 'Faculty Member' : role === 'counselor' ? 'Counselor' : 'Student'}
+                        {role === 'admin' ? 'Administrator' : role === 'mentor' ? 'Faculty Member' : role === 'counselor' ? 'Counselor' : 'Student'}
                     </Badge>
                 }
             />

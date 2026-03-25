@@ -143,7 +143,7 @@ export const Login = () => {
                                         className="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 text-foreground"
                                     >
                                         <option value="admin">Administrator</option>
-                                        <option value="faculty">Faculty Member</option>
+                                        <option value="mentor">Faculty Member</option>
                                         <option value="counselor">Academic Counselor</option>
                                     </select>
                                 </div>
